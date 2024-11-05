@@ -103,11 +103,15 @@ def parse_restaurant(html_file_path):
             "website": website,
         }
 
-        # Print the extracted information
-        for key, value in restaurant_info.items():
-            print(f"{key}: {value}")
+        return restaurant_info
     else:
         print("No JSON-LD found.")
+    
+
+def show_restaurant_info(info):
+        # Print the extracted information
+        for key, value in info.items():
+            print(f"{key}: {value}")
 
 
 
@@ -157,3 +161,27 @@ def parse_website(block):
     # Extract the href attribute
     website = a_tag.get("href")
     return website
+
+
+def save_all_restaurant_info_to_tsv(root_folder, output_tsv):
+    # List to store all restaurant info dictionaries
+    all_restaurant_info = []
+
+    # Traverse the directory
+    for folder_name, subfolders, filenames in os.walk(root_folder):
+        for filename in filenames:
+            if filename.endswith('.html'):  # Check if the file is an HTML file
+                file_path = os.path.join(folder_name, filename)
+                restaurant_info = parse_restaurant(file_path)
+                if restaurant_info:  # Add only if data was extracted
+                    all_restaurant_info.append(restaurant_info)
+
+    # Write all restaurant info to a TSV file
+    if all_restaurant_info:
+        with open(output_tsv, 'w', newline='', encoding='utf-8') as file:
+            writer = csv.DictWriter(file, fieldnames=all_restaurant_info[0].keys(), delimiter='\t')
+            writer.writeheader()  # Write the header row
+            for info in all_restaurant_info:
+                writer.writerow({key: ', '.join(value) if isinstance(value, list) else value for key, value in info.items()})
+
+    print(f"Data saved to {output_tsv}")
