@@ -3,6 +3,7 @@ import os
 import threading
 from bs4 import BeautifulSoup
 import json
+import csv
 
 def save_url_as_html(url, path):
     try:
@@ -85,7 +86,7 @@ def parse_restaurant(html_file_path):
         services_facilities = parse_facilities(services_section)
         website_element = soup.find(class_='collapse__block-item link-item')
         website = parse_website(website_element) if website_element else None
-
+        description = soup.find('div', class_='data-sheet__description').get_text(strip=True)
         # Extract important information with default values of None
         restaurant_info = {
             "restaurantName": json_ld_data.get("name", None),
@@ -96,7 +97,7 @@ def parse_restaurant(html_file_path):
             "region": json_ld_data.get("address", {}).get("addressRegion", None),
             "priceRange": price_and_type[0] if price_and_type else None,
             "cuisineType": price_and_type[1] if price_and_type else None,
-            "description": json_ld_data.get("review", {}).get("description", None),
+            "description": description  if description else None,
             "facilitiesServices": services_facilities if services_facilities else None,
             "creditCards": parse_credit_cards(json_ld_data.get("paymentAccepted", "")),
             "phoneNumber": json_ld_data.get("telephone", None),
