@@ -1,6 +1,8 @@
 import requests
 import os
 import threading
+from bs4 import BeautifulSoup
+import json
 
 def save_url_as_html(url, path):
     try:
@@ -59,3 +61,99 @@ def save_all_as_html(fn):
         # Wait for all threads to complete
         for thread in threads:
             thread.join()
+
+
+def parse_restaurant(html_file_path):
+    # Read the HTML file
+    with open(html_file_path, 'r', encoding='utf-8') as file:
+        html_content = file.read()
+
+    # Parse the HTML content
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    # Find the JSON-LD script tag
+    json_ld_script = soup.find('script', type='application/ld+json')
+
+    if json_ld_script:
+        # Parse the JSON-LD
+        json_ld_data = json.loads(json_ld_script.string)
+
+        # Find and parse relevant HTML elements
+        text_blocks = soup.find_all(class_='data-sheet__block--text')
+        price_and_type = parse_price_and_typeCuisine(text_blocks)
+        services_section = soup.find('div', class_='restaurant-details__services')
+        services_facilities = parse_facilities(services_section)
+        website_element = soup.find(class_='collapse__block-item link-item')
+        website = parse_website(website_element) if website_element else None
+
+        # Extract important information with default values of None
+        restaurant_info = {
+            "restaurantName": json_ld_data.get("name", None),
+            "address": json_ld_data.get("address", {}).get("streetAddress", None),
+            "city": json_ld_data.get("address", {}).get("addressLocality", None),
+            "postalCode": json_ld_data.get("address", {}).get("postalCode", None),
+            "country": json_ld_data.get("address", {}).get("addressCountry", None),
+            "region": json_ld_data.get("address", {}).get("addressRegion", None),
+            "priceRange": price_and_type[0] if price_and_type else None,
+            "cuisineType": price_and_type[1] if price_and_type else None,
+            "description": json_ld_data.get("review", {}).get("description", None),
+            "facilitiesServices": services_facilities if services_facilities else None,
+            "creditCards": parse_credit_cards(json_ld_data.get("paymentAccepted", "")),
+            "phoneNumber": json_ld_data.get("telephone", None),
+            "website": website,
+        }
+
+        # Print the extracted information
+        for key, value in restaurant_info.items():
+            print(f"{key}: {value}")
+    else:
+        print("No JSON-LD found.")
+
+
+
+def parse_credit_cards(cards):
+    possible_cards = {
+        "American Express": 'Amex',
+        "Mastercard": 'Mastercard',
+        "Visa": 'Visa'
+    }
+    
+    results = []
+
+    card_list = [card.strip() for card in cards.split(',')]
+    
+    for card in card_list:
+        for key in possible_cards.keys():
+            # Check if the key (full card name) is in the card string
+            if key in card:
+                results.append(possible_cards[key])
+                break  # Stop checking once a match is found
+    return results
+
+def parse_price_and_typeCuisine(blocks):
+    results = []
+
+    # Iterate over the blocks and filter for the desired content
+    for block in blocks:
+        text_content = block.get_text(strip=True)
+    
+        # Check if the text contains '€' or 'Cuisine' to filter desired entries
+        if '€' in text_content or 'Cuisine' in text_content:
+            results.append(text_content)
+
+    result = list(set(results))[0]
+    result = result.split("·")
+    result[0] = result[0].replace(" ","").replace("\n","")
+    result[1] = result[1].replace("\n","").lstrip()
+    return result
+
+def parse_facilities(services_section):
+    facilities = services_section.find_all('li')
+    facilities_list = [facility.get_text(strip=True) for facility in facilities]
+    return facilities_list
+
+def parse_website(block):
+    a_tag = block.find('a')
+    # Extract the href attribute
+    website = a_tag.get("href")
+    return website
