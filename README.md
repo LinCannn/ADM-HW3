@@ -4,5 +4,5 @@ Third homework for the course "Algorithms for Data Mining", deadline 17th Novemb
 This homework was made by the collective effort of:<br>
 Can Lin, 1994375 <br>
 Nefeli Apostolou, 2168240 <br>
-name, matricola <br>
+Gabriel Pinos,  1965035 <br>
 name, matricola  <- change it <br>
