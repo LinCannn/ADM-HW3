@@ -59,8 +59,8 @@ class Parser:
                 "creditCards": self.parse_credit_cards(json_ld_data.get("paymentAccepted", "")),
                 "phoneNumber": json_ld_data.get("telephone", None),
                 "website": website,
-                "latitude": json_ld_data.get("latitude", None).astype(np.float64),
-                "logitude": json_ld_data.get("longitude", None).astype(np.float64),
+                "latitude": json_ld_data.get("latitude", None),
+                "logitude": json_ld_data.get("longitude", None),
             }
 
             return restaurant_info
