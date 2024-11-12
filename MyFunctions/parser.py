@@ -2,7 +2,7 @@ import os
 from bs4 import BeautifulSoup
 import json
 import csv
-
+import numpy as np
 class Parser:
     """
     Class for parsing restaurant information from HTML files and saving it to a TSV file.
@@ -59,6 +59,8 @@ class Parser:
                 "creditCards": self.parse_credit_cards(json_ld_data.get("paymentAccepted", "")),
                 "phoneNumber": json_ld_data.get("telephone", None),
                 "website": website,
+                "latitude": json_ld_data.get("latitude", None).astype(np.float64),
+                "logitude": json_ld_data.get("longitude", None).astype(np.float64),
             }
 
             return restaurant_info
