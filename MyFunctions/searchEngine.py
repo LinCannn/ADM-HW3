@@ -92,7 +92,7 @@ class SearchEngine:
         
         for word in word_index.keys():
             index = vocabulary_index[vocabulary_index['word'] == word]['term_id']
-            indexes.append(int(index))
+            indexes.append(int(index.iloc[0]))
         
         with open("dataset/inverted_index.json", "r") as f:
             word_dict = json.load(f)
