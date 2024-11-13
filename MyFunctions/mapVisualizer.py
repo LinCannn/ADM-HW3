@@ -78,7 +78,6 @@ class RestaurantMapVisualizer:
                 price = restaurant.get('priceRange', '€')
                 restaurant_name = restaurant['restaurantName']
             
-                
                 # Tooltip information
                 tooltip_text = f"{restaurant_name}\nPrice: {price}"
                 if 'cuisineType' in restaurant:
@@ -98,23 +97,20 @@ class RestaurantMapVisualizer:
                     showlegend=False
                 ))
 
-            # Add a legend for price ranges
+            # Add legend markers explicitly for price ranges
             for price, color in price_color_mapping.items():
                 fig.add_trace(go.Scattermapbox(
-                    lon=[],
-                    lat=[],
+                    lon=[None], 
+                    lat=[None],
                     mode="markers",
-                    marker=dict(
-                        size=10,
-                        color=color 
-                    ),
+                    marker=dict(size=10, color=color),
                     name=price,
-                    showlegend=True
+                    showlegend=True 
                 ))
-
 
             fig.show()
 
         except Exception as e:
             print(f"Error during visualization: {str(e)}")
             raise
+
