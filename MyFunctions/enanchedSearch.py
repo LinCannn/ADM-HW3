@@ -335,7 +335,6 @@ class RestaurantSearchInterface:
                 if len(results) == 0:
                     print("No results found.")
                 else:
-                    print(f"Found {len(results)} results:")
                     display(HTML(self.format_results_as_table(results)))
                     
             except Exception as e:
