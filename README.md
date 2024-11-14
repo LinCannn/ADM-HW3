@@ -135,7 +135,8 @@ To provide an intuitive, interactive geographical representation of Michelin res
 - **Navigation and Zoom**: The interactive map allows users to explore specific areas of Italy, offering a detailed view of Michelin restaurants in each region or city.
 
 
-![Demo del progetto]()
+![Map Visualizer](images/Map_Visualizer.gif)
+
 
 
 ---
