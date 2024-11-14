@@ -121,7 +121,7 @@ To further enhance the search and display of restaurants, an interactive user in
 
 This interface simplifies interaction with the custom ranking system, allowing users to refine preferences and obtain targeted results based on cuisine type, price range, facilities, and other criteria.
 
-![Map Visualizer](images/Search_Engine_Interface.gif)
+https://github.com/user-attachments/assets/33d904ac-0bac-41a5-b9d2-6ee3f413f5a3
 
 
 
