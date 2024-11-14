@@ -121,6 +121,10 @@ To further enhance the search and display of restaurants, an interactive user in
 
 This interface simplifies interaction with the custom ranking system, allowing users to refine preferences and obtain targeted results based on cuisine type, price range, facilities, and other criteria.
 
+![Map Visualizer](images/Search_Engine_Interface.gif)
+
+
+
 ---
 
 ## Visualization of Results
@@ -135,7 +139,7 @@ To provide an intuitive, interactive geographical representation of Michelin res
 - **Navigation and Zoom**: The interactive map allows users to explore specific areas of Italy, offering a detailed view of Michelin restaurants in each region or city.
 
 
-![Map Visualizer](images/Map_Visualizerz.gif)
+[Map Visualizer](images/Map_Visualizer.gif)
 
 
 
