@@ -134,6 +134,10 @@ To provide an intuitive, interactive geographical representation of Michelin res
 - **Price Range Coding**: Different price ranges are represented through marker color or size, making it easier to visually compare more affordable options with more exclusive ones.
 - **Navigation and Zoom**: The interactive map allows users to explore specific areas of Italy, offering a detailed view of Michelin restaurants in each region or city.
 
+
+![Demo del progetto]()
+
+
 ---
 
 
