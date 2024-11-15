@@ -51,9 +51,9 @@ class SearchEngine:
             return []
 
         # Find relevant restaurants by accumulating documents containing each query term
-        ideal_restaurants = set()
+        ideal_restaurants = set(self.inverted_index[str(term_ids[0])])
         for term_id in term_ids:
-            ideal_restaurants.update(self.inverted_index[str(term_id)])
+            ideal_restaurants.intersection_update(self.inverted_index[str(term_id)])
 
         # Filter the DataFrame to only include matching restaurants
         result = self.df[self.df['restaurantName'].isin(ideal_restaurants)]
