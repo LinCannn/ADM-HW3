@@ -5,14 +5,13 @@ import ipywidgets as widgets
 import pandas as pd
 from MyFunctions.searchEngine import SearchEngine
 
-
 class EnhancedSearchEngine:
-    def __init__(self, original_file: str, filtered_file: str, vocabulary_file: str, inverted_index_file: str):
+    def __init__(self, original_file: str, vocabulary_file: str, inverted_index_file: str):
         """
         Initialize the enhanced search engine with all necessary files and data structures.
         """
         # Load the original search engine components
-        self.base_searcher = SearchEngine(original_file, filtered_file, vocabulary_file, inverted_index_file)
+        self.base_searcher = SearchEngine(original_file, vocabulary_file, inverted_index_file)
         
         # Load the complete dataset for additional features
         self.df = pd.read_csv(original_file, sep='\t')
@@ -28,8 +27,8 @@ class EnhancedSearchEngine:
     # Evaluate the score for the restaurant based on our criteria 
     def calculate_custom_score(self, 
                              row_index: int,
-                             query: str,
-                             cosine_scores: dict,  # Pass the scores as a parameter
+                             query: str, 
+                             cosine_scores: dict,
                              desired_cuisine: str = None,
                              desired_price: str = None,
                              desired_facilities: List[str] = None) -> float:
@@ -72,11 +71,11 @@ class EnhancedSearchEngine:
 
     # Define the enanched_search function
     def enhanced_search(self, 
-                       query: str, 
-                       k: int = 10, 
-                       cuisine: str = None, 
-                       price_range: str = None, 
-                       facilities: List[str] = None) -> pd.DataFrame:
+                        query: str, 
+                        k: int = 10, 
+                        cuisine: str = None, 
+                        price_range: str = None, 
+                        facilities: List[str] = None) -> pd.DataFrame:
         """
         Perform an enhanced search with custom scoring and return top-k results.
         """
@@ -85,7 +84,14 @@ class EnhancedSearchEngine:
         
         # Get cosine similarity scores once and convert to dictionary for faster lookup
         cosine_scores_list = self.base_searcher.get_restaurant_scores(query)
-        cosine_scores = {name: score for name, score in cosine_scores_list}
+        
+        try:
+            # Ensure each item in cosine_scores_list contains only two elements (name and score)
+            cosine_scores = {name: score for name, *rest, score in cosine_scores_list}
+        except ValueError as e:
+            print(f"Error unpacking cosine_scores_list: {e}")
+            print(f"Data: {cosine_scores_list}")
+            raise  # Re-raise the exception after logging details
         
         # Create a list to store scores
         scores = []
@@ -124,6 +130,8 @@ class EnhancedSearchEngine:
             results['facilitiesServices'] = self.df.loc[top_indices, 'facilitiesServices'].values
         
         return results
+
+
 
     # Define print_result function to print our results
     def print_results(self, results: pd.DataFrame):
@@ -367,3 +375,4 @@ class RestaurantSearchInterface:
         
         # Display the search interface
         display(search_box)
+
