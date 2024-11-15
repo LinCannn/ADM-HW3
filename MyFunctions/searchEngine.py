@@ -7,9 +7,29 @@ import numpy as np
 
 class SearchEngine:
     def __init__(self, df_path, vocabulary_path, inverted_index_path):
+<<<<<<< Updated upstream
         self.df = pd.read_table(df_path)
         temp_vocabulary = pd.read_csv(vocabulary_path)
         self.vocabulary = {word: index for word, index in zip(temp_vocabulary['word'], temp_vocabulary['term_id'])}
+=======
+        """
+        Initializes the SearchEngine class, loading the main dataset, vocabulary,
+        and inverted index for quick search operations.
+
+        Args:
+            df_path (str): Path to the dataset containing restaurant information.
+            vocabulary_path (str): Path to the CSV file containing vocabulary terms and term IDs.
+            inverted_index_path (str): Path to the JSON file containing the inverted index of terms.
+        """
+        # Load the dataset into a DataFrame
+        self.df = pd.read_table(df_path, index_col=0)
+        
+        # Load vocabulary as a dictionary mapping each word to a unique term ID
+        self.vocabulary = pd.read_csv(vocabulary_path)
+        self.vocabulary_index = {word: index for word, index in zip(self.vocabulary['word'], self.vocabulary['term_id'])}
+        
+        # Load inverted index JSON mapping term IDs to lists of documents
+>>>>>>> Stashed changes
         with open(inverted_index_path) as f:
             self.inverted_index = json.load(f)
           
@@ -19,7 +39,12 @@ class SearchEngine:
         stemmer = PorterStemmer()
         query_text = [stemmer.stem(word) for word in query_text]
         
+<<<<<<< Updated upstream
         term_ids = [self.vocabulary[term] for term in query_text if term in self.vocabulary]
+=======
+        # Map stemmed query terms to term IDs if they exist in the vocabulary
+        term_ids = [self.vocabulary_index[term] for term in query_text if term in self.vocabulary_index]
+>>>>>>> Stashed changes
         
         if not term_ids:
             return []  # No terms matched in vocabulary
@@ -32,6 +57,7 @@ class SearchEngine:
         # Retrieve restaurant details from the DataFrame
         result = self.df[self.df['restaurantName'].isin(ideal_restaurants)]
         return result[['restaurantName', 'address', 'description', 'website']]
+<<<<<<< Updated upstream
         
     def tf(self, description, word_index):
         tf_res = np.zeros(len(word_index))
@@ -52,6 +78,40 @@ class SearchEngine:
             for pos, i in enumerate(indexes):
                 idf =  math.log(total_documents / (1 + len(word_dict[str(i)])))
                 idf_res[pos] = idf
+=======
+    
+    def tf(self, description):
+        """
+        Calculates the term frequency (TF) vector for a given description.
+
+        Args:
+            description (list): Tokenized description of a restaurant.
+            word_index (dict): Dictionary mapping words to their index in the TF vector.
+
+        Returns:
+            np.array: Term frequency vector.
+        """
+        tf_res = np.zeros(len(self.vocabulary_index))
+        for word in self.vocabulary_index.keys():
+            tf_res[self.vocabulary_index[word]] = description.count(word) / len(description)
+        return tf_res
+    
+    def idf(self):
+        """
+        Calculates the inverse document frequency (IDF) for the query terms.
+
+        Args:
+            word_index (dict): Dictionary mapping words to their index in the IDF vector.
+            total_documents (int): Total number of documents in the dataset.
+
+        Returns:
+            np.array: IDF vector.
+        """
+        idf_res = np.zeros(len(self.vocabulary))
+        for word in self.vocabulary_index.keys():
+            idf_value = self.vocabulary.loc[self.vocabulary['word'] == word, 'idf'].values[0]
+            idf_res[self.vocabulary_index[word]] = idf_value
+>>>>>>> Stashed changes
         return idf_res
     
     def tf_idf_score(self, tf, idf): # Hadamart product
@@ -86,13 +146,20 @@ class SearchEngine:
         # Process query
         query_tokens = word_tokenize(query.lower())
         stemmer = PorterStemmer()
-        word_index = {stemmer.stem(word): i for i, word in enumerate(query_tokens)}
+        query_tokens = [stemmer.stem(word) for word in query_tokens]
         
+<<<<<<< Updated upstream
         # Calculate query vectors
         query_tf = self.tf(query, word_index)
         tot_doc = self.df.shape[0]
         query_idf = self.idf(word_index, tot_doc)
         query_tf_idf = self.tf_idf_score(query_tf, query_idf)
+=======
+        # Compute query TF-IDF vector
+        query_tf = self.tf(query)
+        idf_scores = self.idf()
+        query_tf_idf = self.tf_idf_score(query_tf, idf_scores)
+>>>>>>> Stashed changes
         
         # Get relevant restaurants
         df_temp = self.search(query)
@@ -104,8 +171,8 @@ class SearchEngine:
         # Calculate TF-IDF scores
         descriptions = df_results['description_filtered'].tolist()
         description_tokens = [description.split(' ') for description in descriptions]
-        doc_tf = np.array([self.tf(tokens, word_index) for tokens in description_tokens])
-        doc_tf_idf = self.tf_idf_score(doc_tf, query_idf)
+        doc_tf = np.array([self.tf(tokens) for tokens in description_tokens])
+        doc_tf_idf = self.tf_idf_score(doc_tf, idf_scores)
         
         # Calculate cosine similarities
         cos_sim = []
