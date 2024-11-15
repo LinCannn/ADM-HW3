@@ -4,145 +4,203 @@ import json
 import pandas as pd
 import math
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+
 
 class SearchEngine:
-    def __init__(self, original, df_path, vocabulary_path, inverted_index_path):
-        self.original_df = pd.read_table(original)
-        self.df = pd.read_table(df_path)
+    def __init__(self, df_path, vocabulary_path, inverted_index_path):
+        """
+        Initializes the SearchEngine class, loading the main dataset, vocabulary,
+        and inverted index for quick search operations.
+
+        Args:
+            df_path (str): Path to the dataset containing restaurant information.
+            vocabulary_path (str): Path to the CSV file containing vocabulary terms and term IDs.
+            inverted_index_path (str): Path to the JSON file containing the inverted index of terms.
+        """
+        # Load the dataset into a DataFrame
+        self.df = pd.read_table(df_path, index_col=0)
+        
+        # Load vocabulary as a dictionary mapping each word to a unique term ID
         temp_vocabulary = pd.read_csv(vocabulary_path)
         self.vocabulary = {word: index for word, index in zip(temp_vocabulary['word'], temp_vocabulary['term_id'])}
+        
+        # Load inverted index JSON mapping term IDs to lists of documents
         with open(inverted_index_path) as f:
             self.inverted_index = json.load(f)
-          
+
     def search(self, query):
-        # Process the query terms
-        query_text = word_tokenize(query.lower())  # Tokenize and lowercase query
+        """
+        Searches for restaurants based on a user query, using tokenization and stemming.
+
+        Args:
+            query (str): Query string containing search terms.
+
+        Returns:
+            DataFrame: Subset of the main dataset containing restaurants that match the query.
+        """
+        # Tokenize, lowercase, and stem query terms
+        query_text = word_tokenize(query.lower())
         stemmer = PorterStemmer()
         query_text = [stemmer.stem(word) for word in query_text]
         
+        # Map stemmed query terms to term IDs if they exist in the vocabulary
         term_ids = [self.vocabulary[term] for term in query_text if term in self.vocabulary]
         
+        # Return empty result if no terms matched in the vocabulary
         if not term_ids:
-            return []  # No terms matched in vocabulary
-        
-        # Narrow down results for each additional term
+            return []
+
+        # Find relevant restaurants by accumulating documents containing each query term
         ideal_restaurants = set()
         for term_id in term_ids:
             ideal_restaurants.update(self.inverted_index[str(term_id)])
-        
-        # Retrieve restaurant details from the DataFrame
-        result = self.original_df[self.original_df['restaurantName'].isin(ideal_restaurants)]
+
+        # Filter the DataFrame to only include matching restaurants
+        result = self.df[self.df['restaurantName'].isin(ideal_restaurants)]
         return result[['restaurantName', 'address', 'description', 'website']]
+    
+    def tf(self, description, word_index):
+        """
+        Calculates the term frequency (TF) vector for a given description.
+
+        Args:
+            description (list): Tokenized description of a restaurant.
+            word_index (dict): Dictionary mapping words to their index in the TF vector.
+
+        Returns:
+            np.array: Term frequency vector.
+        """
+        tf_res = np.zeros(len(word_index))
+        for word in word_index.keys():
+            tf_res[word_index[word]] = description.count(word) / len(description)
+        return tf_res
+    
+    def idf(self, word_index, total_documents):
+        """
+        Calculates the inverse document frequency (IDF) for the query terms.
+
+        Args:
+            word_index (dict): Dictionary mapping words to their index in the IDF vector.
+            total_documents (int): Total number of documents in the dataset.
+
+        Returns:
+            np.array: IDF vector.
+        """
+        vocabulary_index = pd.read_csv("dataset/vocabulary.csv")
+        indexes = []
+        idf_res = np.zeros(len(word_index))
         
-    def tf(self, df, vocabulary):
-        word_freq_dict = {}
-        for idx, row in df.iterrows():
-            description = row["description_filtered"].split(" ")
-            restaurant_name = row["restaurantName"]
-            word_counts = pd.Series(description).value_counts()
-            word_counts = word_counts[word_counts.index.isin(vocabulary)]
-            
-            for word, count in word_counts.items():
-                word_freq_dict.setdefault(word, []).append((restaurant_name, count / len(description)))
+        for word in word_index.keys():
+            index = vocabulary_index[vocabulary_index['word'] == word]['term_id']
+            indexes.append(int(index.iloc[0]))
         
-        return pd.DataFrame(list(word_freq_dict.items()), columns=["word", "restaurant_frequencies"])
-    
-    def idf(self, tf, total_documents):
-        tf['idf'] = tf['restaurant_frequencies'].apply(lambda x: math.log(total_documents / (1 + len(x))))
-        return tf
-    
-    def tf_idf_score(self, df1):
-        df1 = self.df[self.df['restaurantName'].isin(df1['restaurantName'])]
-        vocabulary = set(df1['description_filtered'].str.cat(sep=' ').split(" "))
-        term_frequency = self.tf(df1, vocabulary)
-        inverse_df = self.idf(term_frequency, df1.shape[0])
-        inverse_df['tf-idf'] = inverse_df['restaurant_frequencies'].apply(
-            lambda row: [(restaurant, freq * row['idf']) for restaurant, freq in row])
-        return inverse_df[['word', 'tf-idf']]
-    
-    def compute_query_tf_idf(self, query):
-        # Tokenize and stem query text
+        with open("dataset/inverted_index.json", "r") as f:
+            word_dict = json.load(f)
+            for pos, i in enumerate(indexes):
+                idf = math.log(total_documents / (1 + len(word_dict[str(i)])))
+                idf_res[pos] = idf
+        return idf_res
+
+    def tf_idf_score(self, tf, idf):
+        """
+        Computes the TF-IDF score as the element-wise product of TF and IDF vectors.
+
+        Args:
+            tf (np.array): Term frequency vector.
+            idf (np.array): Inverse document frequency vector.
+
+        Returns:
+            np.array: TF-IDF score vector.
+        """
+        return tf * idf  # Element-wise multiplication (Hadamard product)
+
+    def compute_cosine_similarity(self, v, w):
+        """
+        Computes the cosine similarity between two vectors.
+
+        Args:
+            v (np.array): First vector.
+            w (np.array): Second vector.
+
+        Returns:
+            float: Cosine similarity score.
+        """
+        # Ensure inputs are numpy arrays
+        v = np.array(v, dtype=float)
+        w = np.array(w, dtype=float)
+        
+        # Return 0 if either vector is zero to avoid division by zero
+        if np.all(v == 0) or np.all(w == 0):
+            return 0.0
+        
+        # Normalize and compute the magnitudes
+        v = v / (np.sum(v) if np.sum(v) != 0 else 1)
+        w = w / (np.sum(w) if np.sum(w) != 0 else 1)
+        
+        # Compute magnitudes
+        magnitude_v = np.sqrt(np.sum(v**2))
+        magnitude_w = np.sqrt(np.sum(w**2))
+        
+        # Compute cosine similarity as the dot product of normalized vectors
+        dot_product = np.sum(v * w)
+        return float(dot_product / (magnitude_v * magnitude_w))
+
+    def get_restaurant_scores(self, query, k=5):
+        """
+        Searches for restaurants based on a query, calculates TF-IDF vectors, and ranks them.
+
+        Args:
+            query (str): User query.
+            k (int): Number of top results to return.
+
+        Returns:
+            DataFrame: Top k restaurants based on cosine similarity.
+        """
+        # Process query by tokenizing, lowercasing, and stemming
         query_tokens = word_tokenize(query.lower())
         stemmer = PorterStemmer()
-        query_tokens = [stemmer.stem(word) for word in query_tokens]
+        word_index = {stemmer.stem(word): i for i, word in enumerate(query_tokens)}
         
-        # Compute TF for the query
-        term_freq = {}
-        for term in query_tokens:
-            if term in self.vocabulary:
-                term_freq[term] = term_freq.get(term, 0) + 1
+        # Compute query TF-IDF vector
+        query_tf = self.tf(query, word_index)
+        tot_doc = self.df.shape[0]
+        query_idf = self.idf(word_index, tot_doc)
+        query_tf_idf = self.tf_idf_score(query_tf, query_idf)
         
-        # Normalize term frequency (TF)
-        query_length = len(query_tokens)
-        query_tf = {term: freq / query_length for term, freq in term_freq.items()}
+        # Retrieve restaurants matching query terms
+        df_temp = self.search(query)
+        df_results = self.df[self.df['restaurantName'].isin(df_temp['restaurantName'])].copy()
         
-        # Compute IDF for each term in query
-        query_idf = {}
-        for term in query_tf:
-            if term in self.vocabulary:
-                term_id = self.vocabulary[term]
-                # IDF calculation for query terms
-                doc_count = len(self.inverted_index[str(term_id)])
-                query_idf[term] = math.log(len(self.df) / (1 + doc_count))
+        # Return empty result if no matching restaurants were found
+        if df_results.empty:
+            return df_results
         
-        # Compute TF-IDF for the query
-        query_tf_idf = {term: query_tf[term] * query_idf[term] for term in query_tf}
-        return query_tf_idf
+        # Calculate TF-IDF scores for each restaurant description
+        descriptions = df_results['description_filtered'].tolist()
+        description_tokens = [description.split(' ') for description in descriptions]
+        doc_tf = np.array([self.tf(tokens, word_index) for tokens in description_tokens])
+        doc_tf_idf = self.tf_idf_score(doc_tf, query_idf)
+        
+        # Compute cosine similarity between query and each restaurant
+        cos_sim = []
+        for doc_vector in doc_tf_idf:
+            similarity = self.compute_cosine_similarity(doc_vector, query_tf_idf)
+            cos_sim.append(similarity)
+        
+        # Store TF-IDF vectors and similarity scores in the DataFrame
+        df_results['tf_idf'] = [vector.tolist() for vector in doc_tf_idf]
+        df_results['similarityScore'] = cos_sim
+        
+        # Sort by similarity score and return top k results
+        df_results.sort_values(by='similarityScore', ascending=False, inplace=True)
+        return df_results[['restaurantName', 'address', 'description', 'website', 'similarityScore']].head(k)
 
-    def compute_cosine_similarity(self, query_tf_idf, restaurant_tf_idf):
-        # Prepare the query and restaurant TF-IDF vectors
-        query_vector = np.array([query_tf_idf.get(word, 0) for word in restaurant_tf_idf.keys()])
-        restaurant_vector = np.array(list(restaurant_tf_idf.values()))
-        
-        # Calculate cosine similarity
-        return cosine_similarity([query_vector], [restaurant_vector])[0][0]
-    
-    def get_restaurant_scores(self, query, k = 5):
-        # Compute TF-IDF for the query
-        query_tf_idf = self.compute_query_tf_idf(query)
-        
-        # Compute the TF-IDF for all restaurant descriptions
-        restaurant_scores = []
-        for idx, row in self.df.iterrows():
-            restaurant_name = row['restaurantName']
-            description = row['description_filtered']
-            description_tokens = description.split(' ')
-            restaurant_tf_idf = {}
-            
-            # Compute TF-IDF for the restaurant description
-            term_freq = {}
-            for term in description_tokens:
-                if term in self.vocabulary:
-                    term_freq[term] = term_freq.get(term, 0) + 1
-            restaurant_tf = {term: freq / len(description_tokens) for term, freq in term_freq.items()}
-            
-            # Compute IDF for the restaurant description
-            for term in restaurant_tf:
-                if term in self.vocabulary:
-                    term_id = self.vocabulary[term]
-                    doc_count = len(self.inverted_index[str(term_id)])
-                    restaurant_tf_idf[term] = restaurant_tf[term] * math.log(len(self.df) / (1 + doc_count))
-            
-            # Compute cosine similarity between the query and restaurant
-            similarity = self.compute_cosine_similarity(query_tf_idf, restaurant_tf_idf)
-            restaurant_scores.append((restaurant_name, similarity))
-        
-        # Sort restaurants by similarity
-        restaurant_scores = sorted(restaurant_scores, key=lambda x: x[1], reverse=True) #List of tuples (name, score)
-
-        #########CHANGE HERE######
-
-        #get table and only get top 5
-
-        ###################à
-        return restaurant_scores
 
 
 class AdvancedSearchEngine:
     def __init__(self):
         # Load the original dataset
-        self.original_df = pd.read_table("dataset/restaurant_info.tsv")
+        self.df = pd.read_table("dataset/restaurant_info.tsv")
     
     def get_price_range(self, min_price, max_price):
         """
@@ -182,7 +240,7 @@ class AdvancedSearchEngine:
         Returns:
             DataFrame with filtered restaurant data.
         """
-        df = self.original_df.copy()
+        df = self.df.copy()
         resultname = set([name for name in df['restaurantName']])
         
         # Apply filters for various criteria
