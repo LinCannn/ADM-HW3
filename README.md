@@ -5,7 +5,7 @@ This homework was made by the collective effort of:<br>
 Can Lin, 1994375 <br>
 Nefeli Apostolou, 2168240 <br>
 Gabriel Pinos,  1965035 <br>
-name, matricola  <- change it <br>
+Zaineb Alojayyan, 2182087  <br>
 
 # Michelin Restaurant Search Engine for Italy 🍽️
 
