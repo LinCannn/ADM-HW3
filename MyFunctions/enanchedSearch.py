@@ -3,6 +3,7 @@ from typing import List, Dict
 from IPython.display import display, clear_output, HTML
 import ipywidgets as widgets
 import pandas as pd
+from typing import List
 from MyFunctions.searchEngine import SearchEngine
 
 class EnhancedSearchEngine:
@@ -16,12 +17,12 @@ class EnhancedSearchEngine:
         # Load the complete dataset for additional features
         self.df = pd.read_csv(original_file, sep='\t')
         
-        # Weight parameters for scoring, all equal
+        # Weight parameters for scoring
         self.weights = {
-            'description': 0.25,
-            'cuisine': 0.25,
-            'facilities': 0.25,
-            'price': 0.25
+            'description': 0.1,
+            'cuisine': 0.3,
+            'facilities': 0.3,
+            'price': 0.3
         }
 
     # Evaluate the score for the restaurant based on our criteria 
@@ -82,19 +83,18 @@ class EnhancedSearchEngine:
         # Get base search results
         base_results = self.base_searcher.search(query)
         
-        # Get cosine similarity scores once and convert to dictionary for faster lookup
-        cosine_scores_list = self.base_searcher.get_restaurant_scores(query)
+        # Get cosine similarity scores as a DataFrame
+        cosine_scores_list = self.base_searcher.get_restaurant_scores2(query)
         
+        # Convert the DataFrame to a dictionary of {restaurantName: similarityScore}
         try:
-            # Ensure each item in cosine_scores_list contains only two elements (name and score)
-            cosine_scores = {name: score for name, *rest, score in cosine_scores_list}
-        except ValueError as e:
-            print(f"Error unpacking cosine_scores_list: {e}")
-            print(f"Data: {cosine_scores_list}")
-            raise  # Re-raise the exception after logging details
+            cosine_scores = dict(zip(cosine_scores_list['restaurantName'], cosine_scores_list['similarityScore']))
+        except KeyError:
+            print("Error: The DataFrame does not have the expected columns 'restaurantName' and 'similarityScore'.")
+            cosine_scores = {}
         
-        # Create a list to store scores
-        scores = []
+        # Create a heap to maintain the top-k scores
+        heap = []
         
         # Calculate custom scores for each result
         for idx in base_results.index:
@@ -106,11 +106,14 @@ class EnhancedSearchEngine:
                 price_range,
                 facilities
             )
-            scores.append((custom_score, idx))
+            # Use a heap to maintain the top k scores
+            if len(heap) < k:
+                heapq.heappush(heap, (custom_score, idx))
+            else:
+                heapq.heappushpop(heap, (custom_score, idx))
         
-        # Sort by score and get top k
-        scores.sort(reverse=True)
-        top_k_scores = scores[:k]
+        # Extract the top k scores from the heap
+        top_k_scores = sorted(heap, reverse=True)
         
         # Get the indices of top k results
         top_indices = [idx for score, idx in top_k_scores]

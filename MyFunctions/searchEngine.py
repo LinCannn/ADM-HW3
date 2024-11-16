@@ -117,34 +117,14 @@ class SearchEngine:
 
     def compute_cosine_similarity(self, v, w):
         """
-        Computes the cosine similarity between two vectors.
-
-        Args:
-            v (np.array): First vector.
-            w (np.array): Second vector.
-
-        Returns:
-            float: Cosine similarity score.
+        Computes cosine similarity between two vectors.
         """
-        # Ensure inputs are numpy arrays
-        v = np.array(v, dtype=float)
-        w = np.array(w, dtype=float)
-        
-        # Return 0 if either vector is zero to avoid division by zero
-        if np.all(v == 0) or np.all(w == 0):
+        dot_product = np.dot(v, w)
+        magnitude_v = np.linalg.norm(v)
+        magnitude_w = np.linalg.norm(w)
+        if magnitude_v == 0 or magnitude_w == 0:
             return 0.0
-        
-        # Normalize and compute the magnitudes
-        v = v / (np.sum(v) if np.sum(v) != 0 else 1)
-        w = w / (np.sum(w) if np.sum(w) != 0 else 1)
-        
-        # Compute magnitudes
-        magnitude_v = np.sqrt(np.sum(v**2))
-        magnitude_w = np.sqrt(np.sum(w**2))
-        
-        # Compute cosine similarity as the dot product of normalized vectors
-        dot_product = np.sum(v * w)
-        return float(dot_product / (magnitude_v * magnitude_w))
+        return dot_product / (magnitude_v * magnitude_w)
     
 
     def get_restaurant_scores1(self, query, k=5):
@@ -198,76 +178,75 @@ class SearchEngine:
         return df_results[['restaurantName', 'address', 'description', 'website', 'similarityScore']].head(k)
     
 
-    def tf2(self, description):
+    def tf2(self, description_tokens):
         """
-        Calculates the term frequency (TF) vector for a given description.
-
-        Args:
-            description (list): Tokenized description of a restaurant.
-            word_index (dict): Dictionary mapping words to their index in the TF vector.
-
-        Returns:
-            np.array: Term frequency vector.
+        Calculates term frequency (TF) for a given description.
         """
-        tf_res = np.zeros(len(self.vocabulary_index))
-        for word in self.vocabulary_index.keys():
-            tf_res[self.vocabulary_index[word]] = description.count(word) / len(description)
+        tf_vector = np.zeros(len(self.vocabulary))
+        for token in description_tokens:
+            if token in self.vocabulary:  # Include only terms in vocabulary
+                term_id = self.vocabulary[token]
+                tf_vector[term_id] += 1
+        tf_vector /= len(description_tokens)  # Normalize by document length
+        return tf_vector
 
-        return tf_res
-
-    def idf2(self):
+    def idf2(self, total_docs):
         """
-        Calculates the inverse document frequency (IDF) for the query terms.
-
-        Args:
-            word_index (dict): Dictionary mapping words to their index in the IDF vector.
-            total_documents (int): Total number of documents in the dataset.
-
-        Returns:
-            np.array: IDF vector.
+        Calculates inverse document frequency (IDF) for all terms in vocabulary.
         """
-        idf_res = np.zeros(len(self.vocabulary2))
-        for word in self.vocabulary_index.keys():
-            idf_value = self.vocabulary2.loc[self.vocabulary2['word'] == word, 'idf'].values[0]
-            idf_res[self.vocabulary_index[word]] = idf_value
-        return idf_res
+        idf_vector = np.zeros(len(self.vocabulary))
+        for word, term_id in self.vocabulary.items():
+            doc_freq = len(self.inverted_index.get(str(term_id), []))
+            idf_vector[term_id] = math.log((total_docs + 1) / (doc_freq + 1)) + 1
+        return idf_vector
+
+    def compute_cosine_similarity(self, v, w):
+        """
+        Computes cosine similarity between two vectors.
+        """
+        dot_product = np.dot(v, w)
+        magnitude_v = np.linalg.norm(v)
+        magnitude_w = np.linalg.norm(w)
+        if magnitude_v == 0 or magnitude_w == 0:
+            return 0.0
+        return dot_product / (magnitude_v * magnitude_w)
 
     def get_restaurant_scores2(self, query, k=5):
-        # Process query
-        query_tokens = word_tokenize(query.lower())
+        """
+        Retrieves top-k restaurants based on cosine similarity with the query.
+        """
+        # Preprocess query
         stemmer = PorterStemmer()
-        query_tokens = [stemmer.stem(word) for word in query_tokens]
-        
-        # Compute query TF-IDF vector
-        query_tf = self.tf2(query)
-        idf_scores = self.idf2()
-        query_tf_idf = self.tf_idf_score(query_tf, idf_scores)
-        
-        # Get relevant restaurants
-        df_temp = self.search(query)
-        df_results = self.df[self.df['restaurantName'].isin(df_temp['restaurantName'])].copy()
-        
-        if df_results.empty:
-            return df_results
-        
-        # Calculate TF-IDF scores
-        descriptions = df_results['description_filtered'].tolist()
-        description_tokens = [description.split(' ') for description in descriptions]
-        doc_tf = np.array([self.tf2(tokens) for tokens in description_tokens])
-        doc_tf_idf = self.tf_idf_score(doc_tf, idf_scores)
-        
+        query_tokens = [stemmer.stem(token) for token in word_tokenize(query.lower())]
+
+        # Calculate query TF-IDF
+        query_tf = self.tf2(query_tokens)
+        idf_scores = self.idf2(len(self.df))
+        query_tf_idf = query_tf * idf_scores
+
+        # Filter relevant documents
+        relevant_restaurants = self.search(query)
+        if relevant_restaurants.empty:
+            return relevant_restaurants
+
+        # Process descriptions
+        relevant_restaurants['description_tokens'] = relevant_restaurants['description'].apply(
+            lambda desc: [stemmer.stem(word) for word in word_tokenize(desc.lower())]
+        )
+        doc_tf_idf = np.array([
+            self.tf2(tokens) * idf_scores
+            for tokens in relevant_restaurants['description_tokens']
+        ])
+
         # Calculate cosine similarities
-        cos_sim = []
-        for doc_vector in doc_tf_idf:
-            similarity = self.compute_cosine_similarity(doc_vector, query_tf_idf)
-            cos_sim.append(similarity)
-        
-        # Add columns directly to the dataframe
-        df_results['tf_idf'] = [vector.tolist() for vector in doc_tf_idf]
-        df_results['similarityScore'] = cos_sim
-        df_results.sort_values(by='similarityScore', ascending=False, inplace=True)
-        # Sort and return top k results
-        return df_results[['restaurantName','address','description','website','similarityScore']].head(k)
+        relevant_restaurants['similarityScore'] = [
+            self.compute_cosine_similarity(query_tf_idf, doc_vector)
+            for doc_vector in doc_tf_idf
+        ]
+
+        # Sort by similarity and return top-k
+        relevant_restaurants = relevant_restaurants.sort_values(by='similarityScore', ascending=False)
+        return relevant_restaurants[['restaurantName', 'address', 'description', 'website', 'similarityScore']].head(k)
 
 class AdvancedSearchEngine:
     def __init__(self):
