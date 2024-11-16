@@ -12,11 +12,11 @@ Zaineb Alojayyan, 2182087  <br>
 ```
 .
 ├── MyFunctions/          # Custom functions and utilities
-├── images/              # Directory containing proof images and JDF files
+├── images/              # Directory containing images
 ├── .gitignore          # Git ignore file for excluding unnecessary files
 ├── README.md           # Project documentation
-├── algorithm.ipynb     # Jupyter notebook containing algorithm implementations
-└── main.ipynb         # Main project notebook with dataset processing
+├── algorithm.ipynb     # Jupyter notebook containing algorithm exercise implementations
+└── main.ipynb         # Main project notebook
 ```
 ### Notebooks
 - `algorithm.ipynb`: Contains algorithm exercise implementations
