@@ -7,6 +7,27 @@ Nefeli Apostolou, 2168240 <br>
 Gabriel Pinos,  1965035 <br>
 Zaineb Alojayyan, 2182087  <br>
 
+
+## Project Structure
+```
+.
+├── MyFunctions/          # Custom functions and utilities
+├── images/              # Directory containing proof images and JDF files
+├── .gitignore          # Git ignore file for excluding unnecessary files
+├── README.md           # Project documentation
+├── algorithm.ipynb     # Jupyter notebook containing algorithm implementations
+└── main.ipynb         # Main project notebook with dataset processing
+```
+### Notebooks
+- `algorithm.ipynb`: Contains algorithm exercise implementations
+- `main.ipynb`: Main project notebook 
+
+### Supporting Files
+- `MyFunctions/`: Directory containing custom utility functions
+- `images/`: Contains images
+- `.gitignore`: Configured for main project dependencies
+
+
 # Michelin Restaurant Search Engine for Italy 🍽️
 
 This project aims to build a search engine for Michelin-starred restaurants across Italy, allowing users to explore restaurants that match their culinary preferences.
